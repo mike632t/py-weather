@@ -31,7 +31,7 @@ def _about():
   sys.stdout.write(
     "Usage: " + sys.argv[0] + " [LOCATION]...\n" +
     "Display weather conditions at LOCATION(s).\n" + "\n" +
-    "      --apikey <key>       specify the API key \n" +
+    "      --appid <key>        specify the API key \n" +
     "  -?, --help               display this help and exit\n" +
     "      --version            output version information and exit\n" +
     "      --debug              dump raw data as JSON\n" +
