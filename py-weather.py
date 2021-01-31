@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
 # py-pygame-display-icons.py
 #
@@ -101,7 +101,7 @@ class weather(object):
   
   def update(self): # Update Weather data.
 
-    import xmltodict, urllib2, json
+    import xmltodict, urllib, json
     import time
     
     _URI = 'https://api.openweathermap.org/data/2.5/weather?units=' + self.units + '&mode=xml&q=' + self.location + '&appid=' + _key 
@@ -109,14 +109,14 @@ class weather(object):
     self.status = 0 # Clear any current errors
     self.error = ''
     try: 
-      _socket = urllib2.urlopen(_URI)
+      _socket = urllib.request.urlopen(_URI)
       _data=_socket.read()
       _socket.close()
       self.weather = xmltodict.parse(_data) # Convert XML response to a python dictionary 
       if _debug: 
         sys.stderr.write (self.location + "\n")
         sys.stderr.write (json.dumps(self.weather, indent=4) + "\n") # Dump dictionary as JSON.
-    except urllib2.HTTPError as _Error:
+    except urllib.error.HTTPError as _Error:
       self.status = _Error.code
       if _Error.code == 404:
         sys.stderr.write ('Error : ' + str(_Error.code) + ' - ' + 'Location (' + _location + ') not found.')
@@ -128,7 +128,7 @@ class weather(object):
         sys.stderr.write ('Error : ' + str(_Error.code) + ' - ' + _Error.reason)
         self.error = str(_Error.reason)
       sys.stderr.write ('\n')
-    except urllib2.URLError as _Error:
+    except urllib.error.URLError as _Error:
       self.status = -1
       self.error = str(_Error.reason)
       sys.stderr.write ('Error : ' + self.error + '\n')
@@ -194,7 +194,7 @@ while _count < len(sys.argv):
       _version()
     elif _arg in "--appid":
       if _count < len(sys.argv):
-        if sys.argv[_count + 1][:1] <> "-":
+        if sys.argv[_count + 1][:1] != "-":
           _key = sys.argv[_count + 1]
           _count += 1
     else:
