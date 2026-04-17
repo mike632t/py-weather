@@ -4,8 +4,7 @@
 #
 #   Displays weather using the OPEN Weather API.
 #
-#   Requires:           python3, python3-tz, python3-pygame, 
-#                       python3-cairosvg 
+#   Requires:           python3, python3-pygame, python3-cairosvg 
 #
 #   This program is free software: you can redistribute it and/or modify it
 #   under  the terms of the GNU General Public License as published by  the
@@ -63,18 +62,27 @@
 #                       enough space on the display to display them - MT
 #                     - Updating the size before drawing the icon means the
 #                       width can be changed on the fly - MT
+#   16 Apr 26         - Suppressed pygame banner text - MT
+#   17 Apr 26   0.3   - Switched over to using json to retreive the weather 
+#                       data removing the dependancy on xmltodict - MT
 #
 
-import io, sys, time, calendar
-import xmltodict, urllib, json
-import traceback
-import pygame, cairosvg
+import io, sys, time
+import urllib.request, urllib.error, json
+import traceback, builtins
+
+# Bit of an ugly hack to suppress pygame banner message...
+
+# _print = builtins.print # Save current print function definition
+builtins.print = lambda *args, **kwargs: None # Redefine print so it doesn't do anything!
+import pygame # Won't print banner as print() doesn't do anything anymore
+#builtins.print = _print # Restore print function if needed!
 
 NAME = "Weather Display"
-VERSION = "0.2"
+VERSION = "0.3"
 
 DISPLAY_SIZE = DISPLAY_WIDTH, DISPLAY_HEIGHT = (800, 480)
-FPS = 60
+FPS = 30
 INTERVAL = 900 # Update interval
 
 BACKGROUND_COLOUR = 'grey10'
@@ -97,7 +105,7 @@ class weather(object):
   def update(self): # Update Weather data.
     
     _URI = ('https://api.openweathermap.org/data/2.5/weather?units=' + 
-           urllib.parse.quote(self.units) + '&mode=xml&q=' + urllib.parse.quote(self.location) + '&appid=' + urllib.parse.quote(self.appid ))
+           urllib.parse.quote(self.units) + '&mode=json&q=' + urllib.parse.quote(self.location) + '&appid=' + urllib.parse.quote(self.appid ))
 
     self.status = 0 # Clear any current errors
     self.error = ''
@@ -105,10 +113,10 @@ class weather(object):
       _socket = urllib.request.urlopen(_URI)
       _data=_socket.read()
       _socket.close()
-      self.weather = xmltodict.parse(_data) # Convert XML response to a python dictionary 
-      self.description = self.weather['current']['weather']['@value'].title().replace('Intensity ', '')
+      self.weather = json.loads(_data) # Convert XML response to a python dictionary 
+      self.description = self.weather['weather'][0]['description'].title().replace('Intensity ', '')
       if _debug: 
-        sys.stderr.write (self.weather['current']['city']['@name'] + "\n")
+        sys.stderr.write (self.weather['name'] + "\n")
         sys.stderr.write (json.dumps(self.weather, indent=4) + "\n") # Dump dictionary as JSON.
       elif _verbose:
         self.list()
@@ -130,42 +138,43 @@ class weather(object):
       exit(self.status)
 
   def list(self): # Print Weather data.
-
+    import datetime
     _output = 'Location : \t\t'
-    _output += self.weather['current']['city']['@name'] + '\n'
+    _output += self.weather['name'] + '\n'
     _output += 'Country : \t\t'
-    _output += self.weather['current']['city']['country'] + '\n'
+    _output += self.weather['sys']['country'] + '\n'
     _output += 'Lat/Long : \t\t'
-    _output += '%+06.2f' % float(self.weather['current']['city']['coord']['@lat']) + ',' + '%+07.2f' % float(self.weather['current']['city']['coord']['@lon']) + '\n'
+    _output += '%+06.2f' % float(self.weather['coord']['lat']) + '/' + '%+07.2f' % float(self.weather['coord']['lon']) + '\n'
     _output += 'Sunrise : \t\t' 
-    _output += time.strftime('%a %d %b %Y %I:%M %p %Z', time.localtime(calendar.timegm(time.strptime(self.weather['current']['city']['sun']['@rise'],'%Y-%m-%dT%H:%M:%S')))) + '\n'
+    _output += (datetime.datetime.utcfromtimestamp(self.weather["sys"]["sunrise"]) +  datetime.timedelta(seconds=self.weather["timezone"])).strftime('%Y-%m-%dT%H:%M:%S') + '\n'
     _output += 'Sunset : \t\t'
-    _output += time.strftime('%a %d %b %Y %I:%M %p %Z', time.localtime(calendar.timegm(time.strptime(self.weather['current']['city']['sun']['@set'],'%Y-%m-%dT%H:%M:%S')))) + '\n\n'
+    _output += (datetime.datetime.utcfromtimestamp(self.weather["sys"]["sunset"]) +  datetime.timedelta(seconds=self.weather["timezone"])).strftime('%Y-%m-%dT%H:%M:%S') + '\n\n'
     _output += 'Description: \t\t'
-    _output += self.weather['current']['weather']['@value'].title() + '\n'
-    _output += 'Temprature : \t\t'
-    _output += '%0.f' % round(float(self.weather['current']['temperature']['@value'])) + ' C\n'
+    _output += self.weather['weather'][0]['description'].title() + '\n'
+    _output += 'Temperature : \t\t'
+    _output += '%0.f' % round(float(self.weather['main']['temp'])) + ' C\n'
     _output += 'Humidity : \t\t'
-    _output += '%d' % float(self.weather['current']['humidity']['@value']) + ' %\n'
+    _output += '%d' % float(self.weather['main']['humidity']) + ' %\n'
     _output += 'Pressure : \t\t'
-    _output += '%d' % (float(self.weather['current']['pressure']['@value'])) + ' mb/hPa\n'
-    if not self.weather['current']['clouds'] is None: # Check cloud data is available
-      _output += 'Cloud Cover : \t\t' + '%d' % (float(self.weather['current']['clouds']['@value'])) + ' % '
-      _output += '(' + self.weather['current']['clouds']['@name'].title() + ')\n'
-    if not self.weather['current']['wind']['speed'] is None: # Check wind speed data is available
-      _output += 'Wind Speed : \t\t' + '%d' % (float(self.weather['current']['wind']['speed']['@value']) * 3.6) + ' km/h ' 
-      _output += '(' + self.weather['current']['wind']['speed']['@name'].title() + ')\n'
-    if not self.weather['current']['wind']['direction'] is None: # Check wind direction data is available
-      _output += 'Wind Direction : \t' +  '%d' % float(self.weather['current']['wind']['direction']['@value']) + u'\xb0 ' 
-      _output += '(' + self.weather['current']['wind']['direction']['@code'] + ')\n\n'
-    _output += 'Updated : \t\t' + time.strftime('%a %d %b %Y %I:%M %p %Z', time.localtime(calendar.timegm(time.strptime(self.weather['current']['lastupdate']['@value' ],'%Y-%m-%dT%H:%M:%S')))) + '\n\n'
+    _output += '%d' % (float(self.weather['main']['pressure'])) + ' mb/hPa\n'
+    if not self.weather['clouds']['all'] is None: # Check cloud data is available
+      _output += 'Cloud Cover : \t\t' + '%d' % (float(self.weather['clouds']['all'])) + ' % '
+      _output += '(' + self.weather['weather'][0]['description'].title() + ')\n'
+    if not self.weather['wind']['speed'] is None: # Check wind speed data is available
+      _output += 'Wind Speed : \t\t' + '%d' % (float(self.weather['wind']['speed']) * 3.6) + ' km/h ' 
+      _output += '\n'
+    if not self.weather['wind']['deg'] is None: # Check wind direction data is available
+      _output += 'Wind Direction : \t' +  '%d' % float(self.weather['wind']['deg']) + u'\xb0 ' 
+      _output += '\n\n'
+    #_output += 'Updated : \t\t' + time.strftime('%a %d %b %Y %I:%M %p %Z', time.localtime(calendar.timegm(time.strptime(self.weather['dt'],'%Y-%m-%dT%H:%M:%S')))) + '\n\n'
+    _output += 'Updated : \t\t' + (datetime.datetime.utcfromtimestamp(self.weather["dt"]) +  datetime.timedelta(seconds=self.weather["timezone"])).strftime('%Y-%m-%dT%H:%M:%S') + '\n\n'
     sys.stderr.write (_output)
 
   def dump(self): # Print Weather data.
     sys.stderr.write (json.dumps(self.weather, indent=4) + "\n") # Dump dictionary as JSON.
 
   def draw(self, _surface, _position): 
-
+    import cairosvg
     def __load_svg(filename, _width):
       _svg = cairosvg.svg2svg(url = filename, dpi = (96 / (_width / 64))) # Convert svg to svg changing DPI to resize the image
       _bytes = cairosvg.svg2png(_svg)
@@ -175,17 +184,14 @@ class weather(object):
     self.size = (self.width, self.height, ) = (self.width, (self.width + self.width // 6)) # Update size from width
     _buffer = pygame.Surface((self.width, self.height))
     _buffer.fill(pygame.Color(BACKGROUND_COLOUR))
-    #_buffer.set_colorkey(pygame.Color(BACKGROUND_COLOUR))  # Background colour will not be blit.
-
-    _image = __load_svg('./img/' + self.weather['current']['weather']['@icon'] + '.svg', self.width * 0.752)
+    _image = __load_svg('./img/' + self.weather['weather'][0]['icon'] + '.svg', self.width * 0.752)
     _left = (self.width - _image.get_width()) // 2
     _top = 0
     _buffer.blit(_image, (_left , _top - self.width // 16)) # Shifting the image up a little is a bit of a fudge but it looks better!
     
     _top = self.width // 24 * 15 # Use the icon height to work out how far to move down before displaying the temprature
-    _font=pygame.font.Font(None, self.width // 3 ) # Display temprature in a font half the size of the weather symbol
-    #_image = _font.render('%.1f' % round(float(self.weather['current']['temperature']['@value'])) + u'\u2103', True, pygame.Color(DARKTEXT_COLOUR)) # Display temprature using unicode symbol \u2103 for degrees C or \u2109 for degrees F
-    _image = _font.render('%.0f' % round(float(self.weather['current']['temperature']['@value'])) + 'C', True, pygame.Color(DARKTEXT_COLOUR)) # Display temprature in C
+    _font=pygame.font.Font(None, self.width // 3 ) # Display temperature in a font half the size of the weather symbol
+    _image = _font.render('%.0f' % round(float(self.weather['main']['temp'])) + 'C', True, pygame.Color(DARKTEXT_COLOUR)) # Display temperature in C
     _left = (self.width - _image.get_width()) // 2
     _buffer.blit(_image, (_left , _top))
     
@@ -193,16 +199,16 @@ class weather(object):
     _font=pygame.font.Font(None, self.width // 6 ) # Display humidity in a font a quarter of the height of the icon
 
     if _humidity :
-      _image = _font.render(u'(' + ('%d' % float(self.weather['current']['humidity']['@value'])) + u'%)', True, pygame.Color(DARKTEXT_COLOUR)) # Display humidity
+      _image = _font.render(u'(' + ('%d' % float(self.weather['main']['humidity'])) + u'%)', True, pygame.Color(DARKTEXT_COLOUR)) # Display humidity
     else:
-      _image = _font.render(self.weather['current']['weather']['@value'].title().replace('Intensity ', ''), True, pygame.Color(DARKTEXT_COLOUR)) # Display description
+      _image = _font.render(self.weather['weather'][0]['description'].title().replace('Intensity ', ''), True, pygame.Color(DARKTEXT_COLOUR)) # Display description
     _left = (self.width - _image.get_width()) // 2
     _buffer.blit(_image, (_left , _top))
 
     _top += _image.get_height() # Use the previous image height to work out how far to move down before displaying the location name
     _font=pygame.font.Font(None, self.width // 6 ) # Display location name in a font a quarter of the height of the icon
     
-    _image = _font.render(self.weather['current']['city']['@name'], True, pygame.Color(DARKTEXT_COLOUR))
+    _image = _font.render(self.weather['name'], True, pygame.Color(DARKTEXT_COLOUR))
     _left = (self.width - _image.get_width()) // 2
     _buffer.blit(_image, (_left , _top))
 
@@ -303,16 +309,16 @@ if __name__ == '__main__':
       if not _item.status: # Only add it to the list of weather results if successful
         if len(_weather) < 2: # Two icons should be no problem but 
           _weather.append(_item) 
-        elif ((DISPLAY_SIZE)[0] // len(_weather) > 96): # check there is space for the icons before adding any more.
+        elif ((DISPLAY_SIZE)[0] // len(_weather) > 96): # Check there is space for the icons before adding any more.
           _weather.append(_item) 
-     
+
     pygame.init() 
     pygame.font.init()
     pygame.mouse.set_visible(False)
 
     _icon = pygame.Surface((32, 32)) # Create a blank icon (32 x 32) for the window
     _icon.fill(pygame.Color('black')) 
-    _icon.set_colorkey(pygame.Color('black')) # Make it compleatly transparent
+    _icon.set_colorkey(pygame.Color('black')) # Make it completely transparent
     pygame.display.set_icon(_icon) # Set it as the window's icon (or rather don't display an icon at all)
     pygame.display.set_caption(NAME) # Set window caption  
 
