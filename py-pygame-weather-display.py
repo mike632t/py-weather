@@ -98,8 +98,11 @@
 #                       JSON is the default) - MT
 #                     - Suppress pygame banner message - MT
 #                     - Added '--noip' and '--nologo' options - MT
+#   29 Apr 26         - Moved folder containing icons - MT 
+
 #
-# To Do:              - Create icons for each weather id...
+# To Do:              - Specify icon folder on the command line.
+#                     - Create icons for each weather id...
 #
 
 NAME = "Weather Display"
@@ -229,7 +232,7 @@ class weather(object):
     #self.size = (self.width, self.height) = (self.width, (self.width + self.width // 6)) # Update size from width
     _buffer = pygame.Surface((self.width, self.height))
     _buffer.fill(pygame.Color(BACKGROUND_COLOUR))
-    _image = __load_svg('./img/' + self.weather['weather'][0]['icon'] + '.svg', self.width * 0.752)
+    _image = __load_svg('./ico/' + self.weather['weather'][0]['icon'] + '.svg', self.width * 0.752)
     _left = (self.width - _image.get_width()) // 2
     _top = 0
     _buffer.blit(_image, (_left , _top - self.width // 8)) # Shifting the image up a little is a bit of a fudge but it the top 12 pixels are unused!
