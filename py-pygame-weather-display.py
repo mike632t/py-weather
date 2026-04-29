@@ -6,6 +6,29 @@
 #
 #   Requires:           python3, python3-pygame, python3-cairosvg 
 #
+#   Uses the following icons 
+#
+#   01d.svg  -  Clear Sky (Day)
+#   01n.svg  -  Clear Sky (Night)
+#   02d.svg  -  Few Clouds (Day)
+#   02n.svg  -  Few Clouds (Night)
+#   03d.svg  -  Scattered Clouds (Day)
+#   03n.svg  -  Scattered Clouds (Night)
+#   04d.svg  -  Broken Clouds (Day)
+#   04n.svg  -  Broken Clouds (Night)  
+#   09d.svg  -  Rain shower (Day)  
+#   09n.svg  -  Rain shower (Night)  
+#   10d.svg  -  Rain (Day)  
+#   10n.svg  -  Rain (Night)  
+#   11d.svg  -  Thunderstorm (Day)  
+#   11n.svg  -  Thunderstorm (Night)
+#   13d.svg  -  Snow (Day)  
+#   13n.svg  -  Snow (Night) 
+#   50d.svg  -  Mist (Day)  
+#   50n.svg  -  Rain (Night) 
+#
+#   See https://openweathermap.org/api/weather-conditions
+#
 #   This program is free software: you can redistribute it and/or modify it
 #   under  the terms of the GNU General Public License as published by  the
 #   Free Software Foundation, either version 3 of the License, or (at  your
@@ -46,7 +69,8 @@
 #                     - Now  uses the weather codes to  generate the  icons
 #                       which gives a much better match between the weather
 #                       conditions and the icon used - MT
-#   16 Feb 21         - Can now resize the images (this needs bit of a fudge  - MT
+#   16 Feb 21         - Can now resize the images (this requires a bit of a
+#                       fudge to make it work)  - MT
 #                     - Removed  the word 'Intensity' from the  description
 #                       of the weather conditions if present ('Heavy  Rain'
 #                       looks  better  than 'Heavy Intensity  Rain') - MT
@@ -64,19 +88,19 @@
 #                       width can be changed on the fly - MT
 #   16 Apr 26         - Suppressed pygame banner text - MT
 #   17 Apr 26   0.3   - Switched over to using json to retreive the weather 
-#                       data removing the dependancy on xmltodict - MT
+#                       data removing the dependency on xmltodict - MT
+#   25 Apr 26         - Use locale (from environment) to get results in the 
+#                       right language - MT
+#                     - Now includes the IP address in the display- MT
+#                     - Displays more detail in the verbose output when the
+#                       '--verbose' option is specified multiple times - MT 
+#                     - Removed mode parameter from URI (not required since
+#                       JSON is the default) - MT
+#                     - Suppress pygame banner message - MT
+#                     - Added '--noip' and '--nologo' options - MT
 #
-
-import io, sys, time
-import urllib.request, urllib.error, json
-import traceback, builtins
-
-# Bit of an ugly hack to suppress pygame banner message...
-
-# _print = builtins.print # Save current print function definition
-builtins.print = lambda *args, **kwargs: None # Redefine print so it doesn't do anything!
-import pygame # Won't print banner as print() doesn't do anything anymore
-#builtins.print = _print # Restore print function if needed!
+# To Do:              - Create icons for each weather id...
+#
 
 NAME = "Weather Display"
 VERSION = "0.3"
@@ -89,10 +113,21 @@ BACKGROUND_COLOUR = 'grey10'
 TEXT_COLOUR = 'white'
 DARKTEXT_COLOUR = 'dark grey'
 
+import io, os, sys, time
+import urllib.request, urllib.error, json
+import traceback, builtins
+
+# Bit of an ugly hack to suppress pygame banner message...
+
+# _print = builtins.print # Save current print function definition
+builtins.print = lambda *args, **kwargs: None # Redefine print so it doesn't do anything!
+import pygame # Won't print banner as print() doesn't do anything anymore
+#builtins.print = _print # Restore print function if needed!
+
 
 class weather(object):
 
-  def __init__(self, _width, _location, _appid,_title = None):
+  def __init__(self, _width, _location, _appid, _title = None):
     self.size = (self.width, self.height, ) = (_width, (_width + _width // 6))
     self.appid = _appid
     self.units = 'metric'
@@ -103,9 +138,9 @@ class weather(object):
     self.update() # Get the current weather for the specified location
     
   def update(self): # Update Weather data.
-    
+    _locale = os.environ.get("LC_ALL") or os.environ.get("LANG") or os.environ.get("LC_CTYPE")
     _URI = ('https://api.openweathermap.org/data/2.5/weather?units=' + 
-           urllib.parse.quote(self.units) + '&mode=json&q=' + urllib.parse.quote(self.location) + '&appid=' + urllib.parse.quote(self.appid ))
+           urllib.parse.quote(self.units) + '&q=' + urllib.parse.quote(self.location) + '&lang=' + _locale.split('_')[0] + '&appid=' + urllib.parse.quote(self.appid ))
 
     self.status = 0 # Clear any current errors
     self.error = ''
@@ -118,8 +153,7 @@ class weather(object):
       if _debug: 
         sys.stderr.write (self.weather['name'] + "\n")
         sys.stderr.write (json.dumps(self.weather, indent=4) + "\n") # Dump dictionary as JSON.
-      elif _verbose:
-        self.list()
+      self.list()
     except urllib.error.HTTPError as _Error:
       self.status = _Error.code
       if _Error.code == 404:
@@ -139,36 +173,47 @@ class weather(object):
 
   def list(self): # Print Weather data.
     import datetime
-    _output = 'Location : \t\t'
-    _output += self.weather['name'] + '\n'
-    _output += 'Country : \t\t'
-    _output += self.weather['sys']['country'] + '\n'
-    _output += 'Lat/Long : \t\t'
-    _output += '%+06.2f' % float(self.weather['coord']['lat']) + '/' + '%+07.2f' % float(self.weather['coord']['lon']) + '\n'
-    _output += 'Sunrise : \t\t' 
-    _output += (datetime.datetime.utcfromtimestamp(self.weather["sys"]["sunrise"]) +  datetime.timedelta(seconds=self.weather["timezone"])).strftime('%Y-%m-%dT%H:%M:%S') + '\n'
-    _output += 'Sunset : \t\t'
-    _output += (datetime.datetime.utcfromtimestamp(self.weather["sys"]["sunset"]) +  datetime.timedelta(seconds=self.weather["timezone"])).strftime('%Y-%m-%dT%H:%M:%S') + '\n\n'
-    _output += 'Description: \t\t'
-    _output += self.weather['weather'][0]['description'].title() + '\n'
-    _output += 'Temperature : \t\t'
-    _output += '%0.f' % round(float(self.weather['main']['temp'])) + ' C\n'
-    _output += 'Humidity : \t\t'
-    _output += '%d' % float(self.weather['main']['humidity']) + ' %\n'
-    _output += 'Pressure : \t\t'
-    _output += '%d' % (float(self.weather['main']['pressure'])) + ' mb/hPa\n'
-    if not self.weather['clouds']['all'] is None: # Check cloud data is available
-      _output += 'Cloud Cover : \t\t' + '%d' % (float(self.weather['clouds']['all'])) + ' % '
-      _output += '(' + self.weather['weather'][0]['description'].title() + ')\n'
-    if not self.weather['wind']['speed'] is None: # Check wind speed data is available
-      _output += 'Wind Speed : \t\t' + '%d' % (float(self.weather['wind']['speed']) * 3.6) + ' km/h ' 
+    if _verbose == 1:
+      _output = self.weather['name'].ljust(16)
+      _output += self.weather['weather'][0]['description'].title().ljust(16) + '\t'
+      _output += ' (Icon: ' + self.weather['weather'][0]['icon'] + '.svg'
+      _output += '  Id: ' + str(self.weather['weather'][0]['id']) + self.weather['weather'][0]['icon'][-1:] + ')'
       _output += '\n'
-    if not self.weather['wind']['deg'] is None: # Check wind direction data is available
-      _output += 'Wind Direction : \t' +  '%d' % float(self.weather['wind']['deg']) + u'\xb0 ' 
-      _output += '\n\n'
-    #_output += 'Updated : \t\t' + time.strftime('%a %d %b %Y %I:%M %p %Z', time.localtime(calendar.timegm(time.strptime(self.weather['dt'],'%Y-%m-%dT%H:%M:%S')))) + '\n\n'
-    _output += 'Updated : \t\t' + (datetime.datetime.utcfromtimestamp(self.weather["dt"]) +  datetime.timedelta(seconds=self.weather["timezone"])).strftime('%Y-%m-%dT%H:%M:%S') + '\n\n'
-    sys.stderr.write (_output)
+      sys.stderr.write (_output)
+    if _verbose >= 2:
+      _output = 'Location : \t\t'
+      _output += self.weather['name'] + '\n'
+      if _verbose >= 3:
+        _output += 'Country : \t\t'
+        _output += self.weather['sys']['country'] + '\n'
+        _output += 'Lat/Long : \t\t'
+        _output += '%+06.2f' % float(self.weather['coord']['lat']) + '/' + '%+07.2f' % float(self.weather['coord']['lon']) + '\n'
+        _output += 'Sunrise : \t\t' 
+        _output += (datetime.datetime.utcfromtimestamp(self.weather["sys"]["sunrise"]) +  datetime.timedelta(seconds=self.weather["timezone"])).strftime('%Y-%m-%dT%H:%M:%S') + '\n'
+        _output += 'Sunset : \t\t'
+        _output += (datetime.datetime.utcfromtimestamp(self.weather["sys"]["sunset"]) +  datetime.timedelta(seconds=self.weather["timezone"])).strftime('%Y-%m-%dT%H:%M:%S') + '\n\n'
+      _output += 'Description: \t\t'
+      _output += self.weather['weather'][0]['description'].title() + '\n'
+      _output += 'Temperature : \t\t'
+      _output += '%0.f' % round(float(self.weather['main']['temp'])) + ' C\n'
+      if _verbose >= 3:
+        _output += 'Humidity : \t\t'
+        _output += '%d' % float(self.weather['main']['humidity']) + ' %\n'
+      _output += 'Pressure : \t\t'
+      _output += '%d' % (float(self.weather['main']['pressure'])) + ' mb/hPa\n'
+      if _verbose >= 3:
+        if not self.weather['clouds']['all'] is None: # Check cloud data is available
+          _output += 'Cloud Cover : \t\t' + '%d' % (float(self.weather['clouds']['all'])) + ' % '
+          _output += '(' + self.weather['weather'][0]['description'].title() + ')\n'
+        if not self.weather['wind']['speed'] is None: # Check wind speed data is available
+          _output += 'Wind Speed : \t\t' + '%d' % (float(self.weather['wind']['speed']) * 3.6) + ' km/h ' 
+          _output += '\n'
+        if not self.weather['wind']['deg'] is None: # Check wind direction data is available
+          _output += 'Wind Direction : \t' +  '%d' % float(self.weather['wind']['deg']) + u'\xb0 ' 
+        _output += '\n\n'
+        _output += 'Updated : \t\t' + (datetime.datetime.utcfromtimestamp(self.weather["dt"]) +  datetime.timedelta(seconds=self.weather["timezone"])).strftime('%Y-%m-%dT%H:%M:%S') + '\n'
+      _output += '\n'
+      sys.stderr.write (_output)
 
   def dump(self): # Print Weather data.
     sys.stderr.write (json.dumps(self.weather, indent=4) + "\n") # Dump dictionary as JSON.
@@ -181,15 +226,15 @@ class weather(object):
       byte_io = io.BytesIO(_bytes)
       return pygame.image.load(byte_io)
 
-    self.size = (self.width, self.height, ) = (self.width, (self.width + self.width // 6)) # Update size from width
+    #self.size = (self.width, self.height) = (self.width, (self.width + self.width // 6)) # Update size from width
     _buffer = pygame.Surface((self.width, self.height))
     _buffer.fill(pygame.Color(BACKGROUND_COLOUR))
     _image = __load_svg('./img/' + self.weather['weather'][0]['icon'] + '.svg', self.width * 0.752)
     _left = (self.width - _image.get_width()) // 2
     _top = 0
-    _buffer.blit(_image, (_left , _top - self.width // 16)) # Shifting the image up a little is a bit of a fudge but it looks better!
+    _buffer.blit(_image, (_left , _top - self.width // 8)) # Shifting the image up a little is a bit of a fudge but it the top 12 pixels are unused!
     
-    _top = self.width // 24 * 15 # Use the icon height to work out how far to move down before displaying the temprature
+    _top = self.width // 24 * 15 # Use the icon width to work out how far to move down before displaying the temperature
     _font=pygame.font.Font(None, self.width // 3 ) # Display temperature in a font half the size of the weather symbol
     _image = _font.render('%.0f' % round(float(self.weather['main']['temp'])) + 'C', True, pygame.Color(DARKTEXT_COLOUR)) # Display temperature in C
     _left = (self.width - _image.get_width()) // 2
@@ -222,6 +267,9 @@ if __name__ == '__main__':
       "Usage: " + sys.argv[0] + " [LOCATION]...\n" +
       "Display weather conditions at LOCATION(s).\n" + "\n" +
       "      --appid <key>        specify the API key \n" +
+      "      --noip               do not display IP address \n" +
+      "      --nologo             do not display OpenWeather logo \n" +
+      "      --verbose            Displays increasingly verbose output \n" +
       "  -?, --help               display this help and exit\n" +
       "      --version            output version information and exit\n" +
       "      --debug              dump raw data as JSON\n" +
@@ -239,6 +287,17 @@ if __name__ == '__main__':
   def _error(_error):
     sys.stderr.write(os.path.basename(sys.argv[0]) + ": " + _error + "\n")
     raise SystemExit
+
+  def _get_address():
+    import socket
+    try: # Attempt to get the IP address
+      connection = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+      connection.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+      connection.connect(('<broadcast>', 0))
+      _address = connection.getsockname()[0]
+    except IOError:
+      _address = ''
+    return _address
 
   def _scan():
     event = pygame.event.poll() # Will return NOEVENT if there are no events in the queue.
@@ -261,8 +320,10 @@ if __name__ == '__main__':
 
   try:      
     _debug = False
-    _verbose = False
+    _showip = True
+    _showlogo = True
     _humidity = False
+    _verbose = 0
 
     _locations = []
     _count = 1
@@ -275,11 +336,15 @@ if __name__ == '__main__':
         elif _arg in "--version":
           _version()
         elif _arg in "--verbose":
-          _verbose = True
+          _verbose += 1
         elif _arg in ["--debug"]:
           _debug = True
         elif _arg in ["--humidity"]:
           _humidity = True
+        elif _arg in ["--noip"]:
+          _showip = False
+        elif _arg in ["--nologo"]:
+          _showlogo = False
         elif _arg in "--appid":
           if _count < len(sys.argv):
             if sys.argv[_count + 1][:1] != "-":
@@ -328,6 +393,7 @@ if __name__ == '__main__':
     _background.fill(pygame.Color(BACKGROUND_COLOUR))
       
     _font=pygame.font.Font(None, 16)
+    _address = _font.render(_get_address(), True, pygame.Color(TEXT_COLOUR))
     _logo = _font.render("Source - Open Weather", True, pygame.Color(TEXT_COLOUR))
 
     _now = time.time()
@@ -336,7 +402,10 @@ if __name__ == '__main__':
     while _scan(): # Wait for an event.
 
       _screen.blit(_background, (0, 0)) # Redrawing the background every time the display is updated fixes the transparency issue 
-      _screen.blit(_logo, (_screen.get_width() -_logo.get_width() - 2, _screen.get_height() - _logo.get_height())) # Display the logo
+      if (_showip):
+        _screen.blit(_address, (2, _screen.get_height() - _address.get_height())) # Display the IP address 
+      if (_showlogo):
+        _screen.blit(_logo, (_screen.get_width() -_logo.get_width() - 2, _screen.get_height() - _logo.get_height())) # Display the logo
 
       if len(_weather) > 0:
         _offset = _screen.get_width() // 2
