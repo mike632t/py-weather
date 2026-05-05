@@ -28,7 +28,7 @@
 | 210  | Thunderstorm   | light thunderstorm             | `11d.svg`            |
 | 211  | Thunderstorm   | thunderstorm                   | `11d.svg`            |
 | 212  | Thunderstorm   | heavy thunderstorm             | `11d.svg`            |
-| 221  | Thunderstorm   | ragged thunderstorm            | `11d.svg`            |
+| 221  | Thunderstorm   | ragged thunderstorm            | `11d.svg`            |  ***
 | 230  | Thunderstorm   | thunderstorm with light drizzle| `11d.svg`            |
 | 231  | Thunderstorm   | thunderstorm with drizzle      | `11d.svg`            |
 | 232  | Thunderstorm   | thunderstorm with heavy drizzle| `11d.svg`            |
@@ -121,3 +121,5 @@
 | 804  | Clouds         | overcast clouds (85–100%)      | `04d.svg`, `04n.svg` | 
 
 ---------------------------------------------------------------------------------
+
+See https://openweathermap.org/api/weather-conditions

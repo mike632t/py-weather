@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   height="64"
+   width="64"
+   viewBox="0 0 64 64"
+   version="1.2"
+>
+   <!-- Haze - Centred (skips every other dot)-->
+   <title>Haze</title>
+   <!--path fill="none" stroke="lightgray" stroke-linecap="round" stroke-width="2.25" stroke-dasharray="0,5.125,0,5.125" d="M16.5 25h30.75"/-->
+   <!--path fill="none" stroke="lightgray" stroke-linecap="round" stroke-width="2.25" stroke-dasharray="0,5.125,0,5.125" d="M16.5 32h30.75"/-->
+   <!--path fill="none" stroke="lightgray" stroke-linecap="round" stroke-width="2.25" stroke-dasharray="0,5.125,0,5.125" d="M16.5 39h30.75"/-->
+   <path fill="none" stroke="lightgray" stroke-linecap="round" stroke-width="2.25" d="M16.5 25h30.75"/>
+   <path fill="none" stroke="lightgray" stroke-linecap="round" stroke-width="2.25" d="M16.5 39h30.75"/>
+                                                                                   
+</svg>
+
